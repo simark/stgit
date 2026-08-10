@@ -92,9 +92,8 @@ test_expect_success 'Test description' '
 '
 
 test_expect_success 'Test description by default' '
-    git config stg.series.description yes &&
-    test_atexit "git config --unset stg.series.description" &&
-    stg series --description >series.txt 2>error.txt &&
+    test_config stgit.series.description true &&
+    stg series >series.txt 2>error.txt &&
     test_line_count = 4 series.txt &&
     test_line_count = 0 error.txt &&
     echo "+ p0 # message 0" >expected.txt &&
@@ -105,8 +104,7 @@ test_expect_success 'Test description by default' '
 '
 
 test_expect_success 'Test --no-description' '
-    git config stg.series.description yes &&
-    test_atexit "git config --unset stg.series.description" &&
+    test_config stgit.series.description true &&
     stg series --no-description >series.txt 2>error.txt &&
     test_line_count = 4 series.txt &&
     test_line_count = 0 error.txt &&
@@ -114,6 +112,38 @@ test_expect_success 'Test --no-description' '
     echo "+ p1" >>expected.txt &&
     echo "> p2" >>expected.txt &&
     echo "- p3" >>expected.txt &&
+    test_cmp expected.txt series.txt
+'
+
+test_expect_success 'Test description disabled explicitly' '
+    test_config stgit.series.description false &&
+    stg series >series.txt 2>error.txt &&
+    test_line_count = 4 series.txt &&
+    test_line_count = 0 error.txt &&
+    echo "+ p0" >expected.txt &&
+    echo "+ p1" >>expected.txt &&
+    echo "> p2" >>expected.txt &&
+    echo "- p3" >>expected.txt &&
+    test_cmp expected.txt series.txt
+'
+
+test_expect_success 'Test --description overrides disabled config' '
+    test_config stgit.series.description false &&
+    stg series --description >series.txt 2>error.txt &&
+    test_line_count = 4 series.txt &&
+    test_line_count = 0 error.txt &&
+    echo "+ p0 # message 0" >expected.txt &&
+    echo "+ p1 # message 1" >>expected.txt &&
+    echo "> p2 # message 2" >>expected.txt &&
+    echo "- p3 # message 3" >>expected.txt &&
+    test_cmp expected.txt series.txt
+'
+
+test_expect_success 'Test description config with --count' '
+    test_config stgit.series.description true &&
+    stg series --count >series.txt 2>error.txt &&
+    test_line_count = 0 error.txt &&
+    echo "4" >expected.txt &&
     test_cmp expected.txt series.txt
 '
 

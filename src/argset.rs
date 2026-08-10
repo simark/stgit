@@ -168,6 +168,15 @@ pub(crate) fn resolve_allow_push_conflicts(
         .unwrap_or_else(|| config.boolean("stgit.push.allow-conflicts").unwrap_or(true))
 }
 
+/// Determine whether `stg series` displays each patch's description by default.
+///
+/// The "stgit.series.description" configuration variable makes `stg series` behave as
+/// if the '--description' option had been given. It is false by default. The
+/// '--description' and '--no-description' options take precedence over this variable.
+pub(crate) fn series_description(config: &gix::config::Snapshot) -> bool {
+    config.boolean("stgit.series.description").unwrap_or(false)
+}
+
 /// Determine whether commands listing the patch series show the topmost patch first.
 ///
 /// The "stgit.series.top-first" configuration variable inverts the order in which

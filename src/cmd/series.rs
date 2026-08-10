@@ -172,6 +172,13 @@ fn make() -> clap::Command {
                 .long("description")
                 .short('d')
                 .help("Display short description for each patch")
+                .long_help(
+                    "Display short description for each patch.\n\
+                     \n\
+                     Setting the \"stgit.series.description\" configuration variable \
+                     to \"true\" enables this by default; --no-description then \
+                     suppresses the descriptions again.",
+                )
                 .action(clap::ArgAction::SetTrue)
                 .overrides_with("no-description"),
         )
@@ -487,7 +494,15 @@ fn run(matches: &ArgMatches) -> Result<()> {
     }
 
     let opt_commit_id = matches.get_one::<CommitIdLength>("commit-id");
-    let description_flag = matches.get_flag("description");
+    // Neither --description nor --no-description on the command line means the
+    // "stgit.series.description" configuration variable decides.
+    let description_flag = if matches.get_flag("description") {
+        true
+    } else if matches.get_flag("no-description") {
+        false
+    } else {
+        argset::series_description(&repo.config_snapshot())
+    };
     let author_flag = matches.get_flag("author");
 
     let branch_prefix = format!("{}:", stack.get_branch_name());

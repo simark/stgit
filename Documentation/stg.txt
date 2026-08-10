@@ -382,6 +382,13 @@ stgit.refreshsubmodules::
   This value may be overridden by the '--submodules' or '--no-submodules' option to
   linkstg:refresh[]. By default, submodule content is not included in patch content.
 
+stgit.series.description::
+  A boolean to specify whether linkstg:series[] displays the short description of each
+  patch, as if the '-d'/'--description' option had been given. Defaults to 'false'.
++
+This value may be overridden by the '-d'/'--description' or '--no-description' option to
+linkstg:series[].
+
 stgit.series.show-after-change::
   A boolean to specify whether commands that change which patches are applied, such as
   linkstg:push[], linkstg:pop[] and linkstg:goto[], display the resulting series instead
