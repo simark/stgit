@@ -15,6 +15,7 @@ use crate::{
     argset,
     branchloc::BranchLocator,
     ext::{CommitExtended, RepositoryExtended},
+    patch::PatchName,
     stack::{Stack, StackAccess, StackStateAccess},
     stupid::Stupid,
 };
@@ -32,7 +33,11 @@ fn make() -> clap::Command {
         .long_about(
             "Show the applied patches modifying the given paths. Without path \
              arguments, the files modified in the working tree are used as the \
-             paths.",
+             paths.\n\
+             \n\
+             Patches are shown from the bottom of the stack to the top, unless the \
+             \"stgit.series.top-first\" configuration variable is set to \"true\", in \
+             which case they are shown from top to bottom.",
         )
         .arg(
             Arg::new("pathspecs")
@@ -98,12 +103,18 @@ fn run(matches: &ArgMatches) -> Result<()> {
 
     let revs = stupid.rev_list(stack.base().id, stack.top().id, Some(&pathspecs))?;
 
+    let applied: Vec<&PatchName> = if argset::series_top_first(&repo.config_snapshot()) {
+        stack.applied().iter().rev().collect()
+    } else {
+        stack.applied().iter().collect()
+    };
+
     if diff_flag {
         // TODO: pager?
         let stdout = std::io::stdout();
         let mut stdout = stdout.lock();
         let diff_opts = argset::get_diff_opts(matches, &repo.config_snapshot(), false, false);
-        for patchname in stack.applied() {
+        for patchname in &applied {
             let patch_commit = stack.get_patch_commit(patchname);
             let parent_commit = patch_commit.get_parent_commit()?;
             if revs.contains(&patch_commit.id) {
@@ -126,7 +137,7 @@ fn run(matches: &ArgMatches) -> Result<()> {
             }
         }
     } else {
-        for patchname in stack.applied() {
+        for patchname in &applied {
             let patch_commit = stack.get_patch_commit(patchname);
             if revs.contains(&patch_commit.id) {
                 println!("{patchname}");

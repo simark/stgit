@@ -81,6 +81,29 @@ test_expect_success 'With diff output' '
     test $(cat even-diff.log | grep -c -E "p(0|1|3) message") = "3"
 '
 
+test_expect_success 'Top-first ordering' '
+    test_config stgit.series.top-first true &&
+    stg patches even.txt >top-first.log &&
+    cat >expected-evens-reversed.log <<-\EOF &&
+	p3
+	p1
+	p0
+	EOF
+    test_cmp top-first.log expected-evens-reversed.log
+'
+
+test_expect_success 'Top-first ordering with diff output' '
+    test_config stgit.series.top-first true &&
+    stg patches --diff even.txt >top-first-diff.log &&
+    grep -o -E "p(0|1|3) message" top-first-diff.log >top-first-diff-order.log &&
+    cat >expected-diff-order.log <<-\EOF &&
+	p3 message
+	p1 message
+	p0 message
+	EOF
+    test_cmp top-first-diff-order.log expected-diff-order.log
+'
+
 test_expect_success 'With diff output and diff-opt' '
     stg patches --diff-opt=--abbrev -O --name-only --diff even.txt >even-diff2.log &&
     test $(cat even-diff2.log | grep -c -E "even.txt") = "3" &&

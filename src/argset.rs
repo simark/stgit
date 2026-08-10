@@ -167,3 +167,12 @@ pub(crate) fn resolve_allow_push_conflicts(
         .map(|s| s == "allow")
         .unwrap_or_else(|| config.boolean("stgit.push.allow-conflicts").unwrap_or(true))
 }
+
+/// Determine whether commands listing the patch series show the topmost patch first.
+///
+/// The "stgit.series.top-first" configuration variable inverts the order in which
+/// commands such as `stg series` and `stg patches` list patches. It is false by
+/// default, i.e. patches are listed from the bottom of the stack to the top.
+pub(crate) fn series_top_first(config: &gix::config::Snapshot) -> bool {
+    config.boolean("stgit.series.top-first").unwrap_or(false)
+}

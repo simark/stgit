@@ -382,6 +382,14 @@ stgit.refreshsubmodules::
   This value may be overridden by the '--submodules' or '--no-submodules' option to
   linkstg:refresh[]. By default, submodule content is not included in patch content.
 
+stgit.series.top-first::
+  A boolean to specify whether commands that list the patch series, such as
+  linkstg:series[] and linkstg:patches[], display the topmost patch first instead of
+  the bottommost patch first. Defaults to 'false'.
++
+When set to 'true', the '-r'/'--reverse' option of linkstg:series[] displays the
+bottommost patch first, i.e. it restores the default order.
+
 stgit.shortnr::
   The number of patches listed by linkstg:series[] when the '-s'/'--short' option is
   specified. Defaults to '5'.

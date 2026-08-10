@@ -41,6 +41,10 @@ fn make() -> clap::Command {
              are displayed. The reversed order is more stack-like, with the base of \
              the stack appearing at the bottom of of the display.\n\
              \n\
+             Setting the \"stgit.series.top-first\" configuration variable to \"true\" \
+             swaps the two orders: patches are then displayed from top to bottom by \
+             default and --reverse displays them from bottom to top.\n\
+             \n\
              Empty patches are prefixed with a '*' when the --empty option is used.",
         )
         .override_usage(super::make_usage(
@@ -263,7 +267,11 @@ fn make() -> clap::Command {
                      is printed last. Thus with the default ordering, the stack is \
                      displayed upside down. Reversing the order flips the stack such \
                      that the bottom of the stack is spatially at the top of the \
-                     display, which may be more intuitive.",
+                     display, which may be more intuitive.\n\
+                     \n\
+                     When the \"stgit.series.top-first\" configuration variable is \
+                     enabled, the default order is already reversed, so this option \
+                     restores the bottom to top order.",
                 )
                 .action(clap::ArgAction::SetTrue),
         )
@@ -544,7 +552,10 @@ fn run(matches: &ArgMatches) -> Result<()> {
     let mut stdout = crate::color::get_color_stdout(matches);
     let mut color_spec = termcolor::ColorSpec::new();
 
-    if matches.get_flag("reverse") {
+    // The --reverse option flips whichever order is the default, so when
+    // "stgit.series.top-first" is enabled, --reverse displays the bottom-most patch
+    // first.
+    if matches.get_flag("reverse") != argset::series_top_first(&repo.config_snapshot()) {
         patches.reverse();
     }
 

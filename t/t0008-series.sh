@@ -154,6 +154,88 @@ test_expect_success 'Test short argument' '
     test_cmp expected.txt series.txt
 '
 
+test_expect_success 'Test reverse' '
+    stg series --reverse >series.txt &&
+    cat >expected.txt <<-\EOF &&
+	- p3
+	> p2
+	+ p1
+	+ p0
+	EOF
+    test_cmp expected.txt series.txt
+'
+
+test_expect_success 'Test top-first' '
+    test_config stgit.series.top-first true &&
+    stg series >series.txt &&
+    cat >expected.txt <<-\EOF &&
+	- p3
+	> p2
+	+ p1
+	+ p0
+	EOF
+    test_cmp expected.txt series.txt
+'
+
+test_expect_success 'Test top-first with --reverse' '
+    test_config stgit.series.top-first true &&
+    stg series --reverse >series.txt &&
+    cat >expected.txt <<-\EOF &&
+	+ p0
+	+ p1
+	> p2
+	- p3
+	EOF
+    test_cmp expected.txt series.txt
+'
+
+test_expect_success 'Test top-first with --no-reverse' '
+    test_config stgit.series.top-first true &&
+    stg series --no-reverse >series.txt &&
+    cat >expected.txt <<-\EOF &&
+	- p3
+	> p2
+	+ p1
+	+ p0
+	EOF
+    test_cmp expected.txt series.txt
+'
+
+test_expect_success 'Test top-first disabled explicitly' '
+    test_config stgit.series.top-first false &&
+    stg series >series.txt &&
+    cat >expected.txt <<-\EOF &&
+	+ p0
+	+ p1
+	> p2
+	- p3
+	EOF
+    test_cmp expected.txt series.txt
+'
+
+test_expect_success 'Test top-first with --short' '
+    test_config stgit.series.top-first true &&
+    stg series --short=1 >series.txt &&
+    cat >expected.txt <<-\EOF &&
+	- p3
+	> p2
+	+ p1
+	EOF
+    test_cmp expected.txt series.txt
+'
+
+test_expect_success 'Test top-first with --indices and --offsets' '
+    test_config stgit.series.top-first true &&
+    stg series --indices --offsets >series.txt &&
+    cat >expected.txt <<-\EOF &&
+	- 3 +1 p3
+	> 2 +0 p2
+	+ 1 -1 p1
+	+ 0 -2 p0
+	EOF
+    test_cmp expected.txt series.txt
+'
+
 test_expect_success 'Test effects' '
     test_config stgit.color.applied none &&
     stg series --applied >series.txt &&
