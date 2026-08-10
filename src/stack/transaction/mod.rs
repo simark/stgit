@@ -307,7 +307,7 @@ impl<'repo> ExecuteContext<'repo> {
         // The series is printed even when the transaction halted, so that the patch
         // that could not be pushed is shown in context.
         if ui.shows_series() {
-            ui.print_series(stack.applied(), stack.unapplied())?;
+            ui.print_series(&stack)?;
         }
 
         if let Some(err) = error {

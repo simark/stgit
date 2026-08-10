@@ -82,6 +82,79 @@ test_expect_success 'New patch is annotated in the series' '
     test_cmp expected out
 '
 
+test_expect_success 'Series shows descriptions' '
+    test_when_finished "stg push -a" &&
+    test_config stgit.series.show-after-change true &&
+    test_config stgit.series.description true &&
+    stg pop -n 2 >out 2>&1 &&
+    cat >expected <<-\EOF &&
+	+ p1 # patch 1
+	> p2 # patch 2
+	- p3 # patch 3
+	- p4 # patch 4
+	EOF
+    test_cmp expected out
+'
+
+test_expect_success 'Series shows descriptions top-first' '
+    test_when_finished "stg push -a" &&
+    test_config stgit.series.show-after-change true &&
+    test_config stgit.series.description true &&
+    test_config stgit.series.top-first true &&
+    stg pop -n 2 >out 2>&1 &&
+    cat >expected <<-\EOF &&
+	- p4 # patch 4
+	- p3 # patch 3
+	> p2 # patch 2
+	+ p1 # patch 1
+	EOF
+    test_cmp expected out
+'
+
+test_expect_success 'Descriptions are aligned past the push statuses' '
+    test_when_finished "stg delete p5" &&
+    test_config stgit.series.show-after-change true &&
+    test_config stgit.series.description true &&
+    stg new -m "patch 5" p5 >out 2>&1 &&
+    cat >expected <<-\EOF &&
+	+ p1       # patch 1
+	+ p2       # patch 2
+	+ p3       # patch 3
+	+ p4       # patch 4
+	> p5 (new) # patch 5
+	EOF
+    test_cmp expected out
+'
+
+test_expect_success 'Descriptions are aligned past the patch names' '
+    test_when_finished "stg delete a-longer-patch-name" &&
+    test_config stgit.series.show-after-change true &&
+    test_config stgit.series.description true &&
+    stg new -m "a longer patch" a-longer-patch-name >out 2>&1 &&
+    cat >expected <<-\EOF &&
+	+ p1                        # patch 1
+	+ p2                        # patch 2
+	+ p3                        # patch 3
+	+ p4                        # patch 4
+	> a-longer-patch-name (new) # a longer patch
+	EOF
+    test_cmp expected out
+'
+
+test_expect_success 'Series without descriptions is not padded' '
+    test_when_finished "stg delete p5" &&
+    test_config stgit.series.show-after-change true &&
+    stg new -m "patch 5" p5 >out 2>&1 &&
+    cat >expected <<-\EOF &&
+	+ p1
+	+ p2
+	+ p3
+	+ p4
+	> p5 (new)
+	EOF
+    test_cmp expected out
+'
+
 test_expect_success 'Goto shows the whole series' '
     test_when_finished "stg push -a" &&
     test_config stgit.series.show-after-change true &&

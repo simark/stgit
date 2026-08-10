@@ -387,7 +387,8 @@ stgit.series.description::
   patch, as if the '-d'/'--description' option had been given. Defaults to 'false'.
 +
 This value may be overridden by the '-d'/'--description' or '--no-description' option to
-linkstg:series[].
+linkstg:series[]. It also applies to the series displayed by the
+'stgit.series.show-after-change' setting.
 
 stgit.series.show-after-change::
   A boolean to specify whether commands that change which patches are applied, such as
@@ -395,9 +396,10 @@ stgit.series.show-after-change::
   of just the patches they pushed or popped. Defaults to 'false'.
 +
 The series is displayed in the same format as linkstg:series[], and thus honors the
-'stgit.series.top-first' setting. Patches pushed by the command keep their status
-annotation, such as '(new)' or '(conflict)'. Commands that do not change which patches
-are applied, such as linkstg:refresh[] and linkstg:rename[], are unaffected.
+'stgit.series.top-first' and 'stgit.series.description' settings. Patches pushed by the
+command keep their status annotation, such as '(new)' or '(conflict)'. Commands that do
+not change which patches are applied, such as linkstg:refresh[] and linkstg:rename[],
+are unaffected.
 
 stgit.series.top-first::
   A boolean to specify whether commands that list the patch series, such as

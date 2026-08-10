@@ -152,18 +152,10 @@ impl<'repo> TransactionBuilder<'repo> {
             options,
         } = self;
 
-        let (show_series, top_first) = {
-            let config = stack.repo.config_snapshot();
-            (
-                options.show_series && crate::argset::series_show_after_change(&config),
-                crate::argset::series_top_first(&config),
-            )
-        };
-
         let ui = TransactionUserInterface::new(
             output.expect("with_output_stream() must be called"),
-            show_series,
-            top_first,
+            options.show_series,
+            &stack.repo.config_snapshot(),
         );
 
         let current_tree_id = stack

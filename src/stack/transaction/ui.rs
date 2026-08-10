@@ -3,10 +3,11 @@
 use std::{cell::RefCell, io::Write};
 
 use anyhow::Result;
+use bstr::ByteSlice;
 use termcolor::WriteColor;
 
 use super::PushStatus;
-use crate::patch::PatchName;
+use crate::{patch::PatchName, stack::StackStateAccess};
 
 /// The annotation shown next to a patch that was pushed, if any.
 fn push_status_str(status: PushStatus) -> &'static str {
@@ -35,6 +36,11 @@ pub(super) struct TransactionUserInterface {
     /// From the "stgit.series.top-first" configuration variable.
     top_first: bool,
 
+    /// Annotate each patch of the series with its short description.
+    ///
+    /// From the "stgit.series.description" configuration variable.
+    show_description: bool,
+
     /// Whether the transaction changed which patches are in the series.
     ///
     /// Only relevant when `show_series` is enabled, where it determines whether the
@@ -49,16 +55,22 @@ pub(super) struct TransactionUserInterface {
 }
 
 impl TransactionUserInterface {
+    /// Create the user interface for a transaction.
+    ///
+    /// The `show_series` parameter tells whether the transaction is one for which
+    /// showing the resulting series makes sense at all; the configuration has the final
+    /// say on whether it is actually shown.
     pub(super) fn new(
         output: termcolor::StandardStream,
         show_series: bool,
-        top_first: bool,
+        config: &gix::config::Snapshot,
     ) -> TransactionUserInterface {
         TransactionUserInterface {
             output: RefCell::new(output),
             printed_top: false,
-            show_series,
-            top_first,
+            show_series: show_series && crate::argset::series_show_after_change(config),
+            top_first: crate::argset::series_top_first(config),
+            show_description: crate::argset::series_description(config),
             series_changed: false,
             push_statuses: Vec::new(),
         }
@@ -270,6 +282,14 @@ impl TransactionUserInterface {
         Ok(())
     }
 
+    /// The push status recorded for the given patch, if it was pushed.
+    fn push_status(&self, patchname: &PatchName) -> Option<PushStatus> {
+        self.push_statuses
+            .iter()
+            .find(|(pushed_patchname, _)| pushed_patchname == patchname)
+            .map(|(_, status)| *status)
+    }
+
     /// Print the whole series resulting from the transaction.
     ///
     /// This takes the place of the per-patch output of [`Self::print_pushed()`] and
@@ -278,11 +298,9 @@ impl TransactionUserInterface {
     /// by the transaction retain their push status annotation.
     ///
     /// Hidden patches are not shown, matching the default `stg series` output.
-    pub(super) fn print_series(
-        &self,
-        applied: &[PatchName],
-        unapplied: &[PatchName],
-    ) -> Result<()> {
+    pub(super) fn print_series<'repo>(&self, stack: &impl StackStateAccess<'repo>) -> Result<()> {
+        let applied = stack.applied();
+        let unapplied = stack.unapplied();
         let mut entries: Vec<(&PatchName, char)> =
             Vec::with_capacity(applied.len() + unapplied.len());
         if let Some((top_patchname, rest)) = applied.split_last() {
@@ -294,15 +312,34 @@ impl TransactionUserInterface {
             entries.reverse();
         }
 
+        // The descriptions are lined up in a column of their own, which requires padding
+        // both the patch names and the push status annotations to their widest.
+        let (patchname_width, status_width) = if self.show_description {
+            (
+                entries
+                    .iter()
+                    .map(|(patchname, _)| patchname.len())
+                    .max()
+                    .unwrap_or(0),
+                entries
+                    .iter()
+                    .map(|(patchname, _)| {
+                        self.push_status(patchname)
+                            .map_or("", push_status_str)
+                            .len()
+                    })
+                    .max()
+                    .unwrap_or(0),
+            )
+        } else {
+            (0, 0)
+        };
+
         let mut output = self.output.borrow_mut();
         let mut color_spec = termcolor::ColorSpec::new();
 
         for (patchname, sigil) in entries {
-            let status = self
-                .push_statuses
-                .iter()
-                .find(|(pushed_patchname, _)| pushed_patchname == patchname)
-                .map(|(_, status)| *status);
+            let status = self.push_status(patchname);
 
             let sigil_color = if let Some(PushStatus::Conflict) = status {
                 termcolor::Color::Red
@@ -322,19 +359,35 @@ impl TransactionUserInterface {
                 '-' => color_spec.set_dimmed(true),
                 _ => color_spec.set_intense(true),
             })?;
-            write!(output, "{patchname}")?;
-            output.reset()?;
-            color_spec.clear();
+            write!(output, "{patchname:patchname_width$}")?;
 
             let status_str = status.map_or("", push_status_str);
             if status_str.is_empty() {
-                writeln!(output)?;
+                if status_width > 0 {
+                    write!(output, " {:status_width$}", "")?;
+                }
             } else {
                 output.set_color(color_spec.set_fg(Some(termcolor::Color::Yellow)))?;
-                writeln!(output, " {status_str}")?;
-                output.reset()?;
-                color_spec.clear();
+                write!(output, " {status_str:status_width$}")?;
             }
+
+            if self.show_description {
+                let patch_commit = stack.get_patch_commit(patchname);
+                let commit_ref = patch_commit.decode()?;
+                output.set_color(color_spec.set_fg(Some(termcolor::Color::Black)))?;
+                write!(output, " #")?;
+                let summary = commit_ref.message_summary();
+                if !summary.is_empty() {
+                    if let Ok(summary) = summary.to_str() {
+                        output.set_color(color_spec.set_fg(None))?;
+                        write!(output, " {summary}")?;
+                    }
+                }
+            }
+
+            output.reset()?;
+            color_spec.clear();
+            writeln!(output)?;
         }
         Ok(())
     }
