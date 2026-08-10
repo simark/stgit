@@ -200,6 +200,7 @@ fn run(matches: &ArgMatches) -> Result<()> {
     let stack = stack
         .setup_transaction()
         .with_output_stream(get_color_stdout(matches))
+        .show_series(false)
         .transact(|trans| trans.new_applied(&temp_patchname, temp_commit_id))
         .execute(&format!(
             "refresh {temp_patchname} (create temporary patch)"
@@ -211,6 +212,7 @@ fn run(matches: &ArgMatches) -> Result<()> {
         .use_index_and_worktree(true)
         .with_output_stream(get_color_stdout(matches))
         .allow_push_conflicts(allow_push_conflicts)
+        .show_series(false)
         .transact(|trans| {
             if let Some(pos) = trans.applied().iter().position(|pn| pn == &patchname) {
                 // Absorb temp patch into already applied patch

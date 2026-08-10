@@ -382,6 +382,16 @@ stgit.refreshsubmodules::
   This value may be overridden by the '--submodules' or '--no-submodules' option to
   linkstg:refresh[]. By default, submodule content is not included in patch content.
 
+stgit.series.show-after-change::
+  A boolean to specify whether commands that change which patches are applied, such as
+  linkstg:push[], linkstg:pop[] and linkstg:goto[], display the resulting series instead
+  of just the patches they pushed or popped. Defaults to 'false'.
++
+The series is displayed in the same format as linkstg:series[], and thus honors the
+'stgit.series.top-first' setting. Patches pushed by the command keep their status
+annotation, such as '(new)' or '(conflict)'. Commands that do not change which patches
+are applied, such as linkstg:refresh[] and linkstg:rename[], are unaffected.
+
 stgit.series.top-first::
   A boolean to specify whether commands that list the patch series, such as
   linkstg:series[] and linkstg:patches[], display the topmost patch first instead of

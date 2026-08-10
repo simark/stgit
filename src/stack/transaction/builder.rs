@@ -109,6 +109,19 @@ impl<'repo> TransactionBuilder<'repo> {
         self
     }
 
+    /// Determines whether the resulting series may be shown when the transaction
+    /// completes. This is the default, but the series is only actually shown when the
+    /// "stgit.series.show-after-change" configuration variable is enabled.
+    ///
+    /// Disabling this is useful for transactions that manipulate internal patches, for
+    /// which the resulting series is an implementation detail rather than something the
+    /// user asked for.
+    #[must_use]
+    pub(crate) fn show_series(mut self, yes: bool) -> Self {
+        self.options.show_series = yes;
+        self
+    }
+
     /// Determines whether the committer date will be set to be the same as the author
     /// date when pushing patches.
     #[must_use]
@@ -139,8 +152,19 @@ impl<'repo> TransactionBuilder<'repo> {
             options,
         } = self;
 
-        let ui =
-            TransactionUserInterface::new(output.expect("with_output_stream() must be called"));
+        let (show_series, top_first) = {
+            let config = stack.repo.config_snapshot();
+            (
+                options.show_series && crate::argset::series_show_after_change(&config),
+                crate::argset::series_top_first(&config),
+            )
+        };
+
+        let ui = TransactionUserInterface::new(
+            output.expect("with_output_stream() must be called"),
+            show_series,
+            top_first,
+        );
 
         let current_tree_id = stack
             .get_branch_head()

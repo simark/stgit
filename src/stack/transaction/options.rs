@@ -9,6 +9,7 @@ pub(super) struct TransactionOptions {
     pub(super) set_head: bool,
     pub(super) allow_bad_head: bool,
     pub(super) committer_date_is_author_date: bool,
+    pub(super) show_series: bool,
 }
 
 impl Default for TransactionOptions {
@@ -21,6 +22,7 @@ impl Default for TransactionOptions {
             set_head: true,
             allow_bad_head: false,
             committer_date_is_author_date: false,
+            show_series: true,
         }
     }
 }

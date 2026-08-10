@@ -176,3 +176,14 @@ pub(crate) fn resolve_allow_push_conflicts(
 pub(crate) fn series_top_first(config: &gix::config::Snapshot) -> bool {
     config.boolean("stgit.series.top-first").unwrap_or(false)
 }
+
+/// Determine whether the full patch series is shown after patches are pushed or popped.
+///
+/// The "stgit.series.show-after-change" configuration variable makes commands that
+/// change which patches are applied, such as `stg push` and `stg pop`, display the
+/// resulting series instead of just the patches they touched. It is false by default.
+pub(crate) fn series_show_after_change(config: &gix::config::Snapshot) -> bool {
+    config
+        .boolean("stgit.series.show-after-change")
+        .unwrap_or(false)
+}

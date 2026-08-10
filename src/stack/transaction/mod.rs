@@ -304,6 +304,12 @@ impl<'repo> ExecuteContext<'repo> {
         })
         .map_err(|e| rollback(trans_head_tree_id, e))?;
 
+        // The series is printed even when the transaction halted, so that the patch
+        // that could not be pushed is shown in context.
+        if ui.shows_series() {
+            ui.print_series(stack.applied(), stack.unapplied())?;
+        }
+
         if let Some(err) = error {
             Err(err)
         } else {

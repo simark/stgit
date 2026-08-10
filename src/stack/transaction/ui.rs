@@ -8,22 +8,71 @@ use termcolor::WriteColor;
 use super::PushStatus;
 use crate::patch::PatchName;
 
+/// The annotation shown next to a patch that was pushed, if any.
+fn push_status_str(status: PushStatus) -> &'static str {
+    match status {
+        PushStatus::New => "(new)",
+        PushStatus::AlreadyMerged => "(merged)",
+        PushStatus::Conflict => "(conflict)",
+        PushStatus::Empty => "(empty)",
+        PushStatus::Modified => "(modified)",
+        PushStatus::Unmodified => "",
+    }
+}
+
 /// User output for stack transactions.
 pub(super) struct TransactionUserInterface {
     output: RefCell<termcolor::StandardStream>,
     printed_top: bool,
+
+    /// Print the resulting series instead of the individual pushed and popped patches.
+    ///
+    /// From the "stgit.series.show-after-change" configuration variable.
+    show_series: bool,
+
+    /// Print the series with the topmost patch first.
+    ///
+    /// From the "stgit.series.top-first" configuration variable.
+    top_first: bool,
+
+    /// Whether the transaction changed which patches are in the series.
+    ///
+    /// Only relevant when `show_series` is enabled, where it determines whether the
+    /// resulting series is worth printing at all.
+    series_changed: bool,
+
+    /// Status of each patch pushed by the transaction.
+    ///
+    /// Only recorded when `show_series` is enabled, so that the statuses may be
+    /// annotated onto the series printed at the end of the transaction.
+    push_statuses: Vec<(PatchName, PushStatus)>,
 }
 
 impl TransactionUserInterface {
-    pub(super) fn new(output: termcolor::StandardStream) -> TransactionUserInterface {
+    pub(super) fn new(
+        output: termcolor::StandardStream,
+        show_series: bool,
+        top_first: bool,
+    ) -> TransactionUserInterface {
         TransactionUserInterface {
             output: RefCell::new(output),
             printed_top: false,
+            show_series,
+            top_first,
+            series_changed: false,
+            push_statuses: Vec::new(),
         }
     }
 
     pub(super) fn printed_top(&self) -> bool {
-        self.printed_top
+        // The topmost patch is part of the series printed at the end of the
+        // transaction, so it must not be printed on its own as well.
+        self.printed_top || self.shows_series()
+    }
+
+    /// Whether the resulting series should be printed by [`Self::print_series()`].
+    pub(super) fn shows_series(&self) -> bool {
+        self.show_series && self.series_changed
     }
 
     pub(super) fn print_merged(&self, merged_patches: &[&PatchName]) -> Result<()> {
@@ -55,7 +104,8 @@ impl TransactionUserInterface {
         Ok(())
     }
 
-    pub(super) fn print_committed(&self, committed: &[PatchName]) -> Result<()> {
+    pub(super) fn print_committed(&mut self, committed: &[PatchName]) -> Result<()> {
+        self.series_changed = true;
         let mut output = self.output.borrow_mut();
         let mut color_spec = termcolor::ColorSpec::new();
         output.set_color(color_spec.set_fg(Some(termcolor::Color::Yellow)))?;
@@ -77,6 +127,7 @@ impl TransactionUserInterface {
 
     pub(super) fn print_uncommitted(&mut self, uncommitted: &[PatchName]) -> Result<()> {
         if !uncommitted.is_empty() {
+            self.series_changed = true;
             let mut output = self.output.borrow_mut();
             let mut color_spec = termcolor::ColorSpec::new();
             output.set_color(color_spec.set_fg(Some(termcolor::Color::Green)))?;
@@ -93,8 +144,9 @@ impl TransactionUserInterface {
         Ok(())
     }
 
-    pub(super) fn print_deleted(&self, deleted: &[PatchName]) -> Result<()> {
+    pub(super) fn print_deleted(&mut self, deleted: &[PatchName]) -> Result<()> {
         if !deleted.is_empty() {
+            self.series_changed = true;
             let mut output = self.output.borrow_mut();
             let mut color_spec = termcolor::ColorSpec::new();
             output.set_color(color_spec.set_fg(Some(termcolor::Color::Yellow)))?;
@@ -115,7 +167,8 @@ impl TransactionUserInterface {
         Ok(())
     }
 
-    pub(super) fn print_hidden(&self, hidden: &[PatchName]) -> Result<()> {
+    pub(super) fn print_hidden(&mut self, hidden: &[PatchName]) -> Result<()> {
+        self.series_changed = true;
         let mut output = self.output.borrow_mut();
         let mut color_spec = termcolor::ColorSpec::new();
         for patchname in hidden {
@@ -130,7 +183,8 @@ impl TransactionUserInterface {
         Ok(())
     }
 
-    pub(super) fn print_unhidden(&self, unhidden: &[PatchName]) -> Result<()> {
+    pub(super) fn print_unhidden(&mut self, unhidden: &[PatchName]) -> Result<()> {
+        self.series_changed = true;
         let mut output = self.output.borrow_mut();
         let mut color_spec = termcolor::ColorSpec::new();
         for patchname in unhidden {
@@ -145,8 +199,12 @@ impl TransactionUserInterface {
         Ok(())
     }
 
-    pub(super) fn print_popped(&self, popped: &[PatchName]) -> Result<()> {
+    pub(super) fn print_popped(&mut self, popped: &[PatchName]) -> Result<()> {
         if !popped.is_empty() {
+            self.series_changed = true;
+            if self.show_series {
+                return Ok(());
+            }
             let mut output = self.output.borrow_mut();
             let mut color_spec = termcolor::ColorSpec::new();
             output.set_color(color_spec.set_fg(Some(termcolor::Color::Magenta)))?;
@@ -173,6 +231,11 @@ impl TransactionUserInterface {
         status: PushStatus,
         is_last: bool,
     ) -> Result<()> {
+        self.series_changed = true;
+        if self.show_series {
+            self.push_statuses.push((patchname.clone(), status));
+            return Ok(());
+        }
         let mut output = self.output.borrow_mut();
         let sigil = if is_last { '>' } else { '+' };
         let mut color_spec = termcolor::ColorSpec::new();
@@ -191,14 +254,7 @@ impl TransactionUserInterface {
         write!(output, "{patchname}")?;
         output.reset()?;
 
-        let status_str = match status {
-            PushStatus::New => "(new)",
-            PushStatus::AlreadyMerged => "(merged)",
-            PushStatus::Conflict => "(conflict)",
-            PushStatus::Empty => "(empty)",
-            PushStatus::Modified => "(modified)",
-            PushStatus::Unmodified => "",
-        };
+        let status_str = push_status_str(status);
 
         if status_str.is_empty() {
             writeln!(output)?;
@@ -210,6 +266,75 @@ impl TransactionUserInterface {
         }
         if is_last {
             self.printed_top = true;
+        }
+        Ok(())
+    }
+
+    /// Print the whole series resulting from the transaction.
+    ///
+    /// This takes the place of the per-patch output of [`Self::print_pushed()`] and
+    /// [`Self::print_popped()`] when the "stgit.series.show-after-change" configuration
+    /// variable is enabled. The output matches `stg series`, except that patches pushed
+    /// by the transaction retain their push status annotation.
+    ///
+    /// Hidden patches are not shown, matching the default `stg series` output.
+    pub(super) fn print_series(
+        &self,
+        applied: &[PatchName],
+        unapplied: &[PatchName],
+    ) -> Result<()> {
+        let mut entries: Vec<(&PatchName, char)> =
+            Vec::with_capacity(applied.len() + unapplied.len());
+        if let Some((top_patchname, rest)) = applied.split_last() {
+            entries.extend(rest.iter().map(|patchname| (patchname, '+')));
+            entries.push((top_patchname, '>'));
+        }
+        entries.extend(unapplied.iter().map(|patchname| (patchname, '-')));
+        if self.top_first {
+            entries.reverse();
+        }
+
+        let mut output = self.output.borrow_mut();
+        let mut color_spec = termcolor::ColorSpec::new();
+
+        for (patchname, sigil) in entries {
+            let status = self
+                .push_statuses
+                .iter()
+                .find(|(pushed_patchname, _)| pushed_patchname == patchname)
+                .map(|(_, status)| *status);
+
+            let sigil_color = if let Some(PushStatus::Conflict) = status {
+                termcolor::Color::Red
+            } else {
+                match sigil {
+                    '>' => termcolor::Color::Blue,
+                    '-' => termcolor::Color::Magenta,
+                    _ => termcolor::Color::Green,
+                }
+            };
+            output.set_color(color_spec.set_fg(Some(sigil_color)))?;
+            write!(output, "{sigil} ")?;
+            color_spec.clear();
+
+            output.set_color(match sigil {
+                '>' => color_spec.set_bold(true),
+                '-' => color_spec.set_dimmed(true),
+                _ => color_spec.set_intense(true),
+            })?;
+            write!(output, "{patchname}")?;
+            output.reset()?;
+            color_spec.clear();
+
+            let status_str = status.map_or("", push_status_str);
+            if status_str.is_empty() {
+                writeln!(output)?;
+            } else {
+                output.set_color(color_spec.set_fg(Some(termcolor::Color::Yellow)))?;
+                writeln!(output, " {status_str}")?;
+                output.reset()?;
+                color_spec.clear();
+            }
         }
         Ok(())
     }
