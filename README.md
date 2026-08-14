@@ -11,6 +11,37 @@ productivity.
 For a complete introduction to StGit, see the [Stacked Git
 homepage](https://stacked-git.github.io).
 
+## Local modifications
+
+This branch carries a few patches on top of upstream StGit, all of them
+adding configuration options for how the patch series is displayed. See
+[`Documentation/stg.txt`](Documentation/stg.txt) for the reference
+documentation of each option.
+
+- `stgit.series.top-first`: a boolean that makes commands which list the
+  patch series, namely `stg series` and `stg patches`, display the
+  topmost patch first instead of the bottommost patch first. Defaults to
+  `false`. With it enabled, `stg series --reverse` restores the
+  bottom-first order. Commands whose ordering is functional rather than a
+  listing, such as `stg export`, `stg email` and `stg push`, are left
+  alone.
+
+- `stgit.series.show-after-change`: a boolean that makes commands which
+  change which patches are applied, such as `stg push`, `stg pop` and
+  `stg goto`, display the resulting series instead of just the patches
+  they pushed or popped. Defaults to `false`. The series is rendered like
+  `stg series`, and patches pushed by the command keep their status
+  annotation, so a halted push still shows which patch conflicted, in the
+  context of the whole series. Commands that do not change which patches
+  are applied, such as `stg refresh` and `stg rename`, are unaffected.
+
+- `stgit.series.description`: a boolean that makes `stg series` annotate
+  each patch with its short description, as if `--description` had been
+  given. Defaults to `false`, and `--description`/`--no-description` still
+  take precedence over it. It also applies to the series printed by
+  `stgit.series.show-after-change`. This restores an option of the same
+  name that existed in the Python implementation of StGit.
+
 ## Getting started
 
 To get a feel for how StGit works, see this brief [example of StGit in
