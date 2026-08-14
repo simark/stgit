@@ -13,8 +13,8 @@ homepage](https://stacked-git.github.io).
 
 ## Local modifications
 
-This branch carries a few patches on top of upstream StGit, all of them
-adding configuration options for how the patch series is displayed. See
+This branch carries a few patches on top of upstream StGit. Most of them
+add configuration options for how the patch series is displayed; see
 [`Documentation/stg.txt`](Documentation/stg.txt) for the reference
 documentation of each option.
 
@@ -41,6 +41,11 @@ documentation of each option.
   take precedence over it. It also applies to the series printed by
   `stgit.series.show-after-change`. This restores an option of the same
   name that existed in the Python implementation of StGit.
+
+- [`contrib/stggitguard.zsh`](contrib/stggitguard.zsh): a zsh function
+  that refuses `git` commands which would desynchronize StGit's patch
+  stack metadata, such as `git commit` or `git rebase`, when the current
+  branch has applied patches. Source it from `~/.zshrc`.
 
 ## Getting started
 
